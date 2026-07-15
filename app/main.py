@@ -3,8 +3,8 @@ from dotenv import load_dotenv
 from pathlib import Path
 from google import genai
 from google.genai import types
-from app.config import get_connection
-from app.entity_resolver import resolve_form
+from config import get_connection
+from entity_resolver import resolve_form
 import time
 from google.genai.errors import ServerError
 
