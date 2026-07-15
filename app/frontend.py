@@ -1,6 +1,6 @@
 import streamlit as st
-from app.main import generate_answer, retrieve_chunks, embed_query
-from app.entity_resolver import resolve_form
+from main import generate_answer, retrieve_chunks, embed_query
+from entity_resolver import resolve_form
 
 st.set_page_config(page_title="Mise RAG Assistant", page_icon="♻️")
 st.title("♻️ Mise.ax RAG Assistant")
