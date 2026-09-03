@@ -96,6 +96,62 @@ Question: {question}
 Answer clearly and cite the source filename in brackets after relevant sentences."""
 
 
+# ---------------------------------------------------------------------------
+# Cost estimation (Gemini 3 Flash pricing as of 2025)
+# Input:  ~$0.075 / 1M tokens  → $0.000000075 per token
+# Output: ~$0.300 / 1M tokens  → $0.000000300 per token
+# Rough token estimate: 1 token ≈ 4 characters
+# ---------------------------------------------------------------------------
+def calculate_cost(prompt_chars: int, response_chars: int) -> float:
+    input_tokens = prompt_chars / 4
+    output_tokens = response_chars / 4
+    return (input_tokens * 0.000000075) + (output_tokens * 0.00000030)
+
+
+def generate_answer_with_metrics(question: str) -> dict:
+    """Same as generate_answer but also returns latency_ms and cost_usd."""
+    start_time = time.time()
+
+    query_embedding = embed_query(question)
+    chunks = retrieve_chunks(query_embedding)
+
+    if not chunks:
+        return {
+            "answer": "Jag kunde inte hitta relevant information i kunskapsbasen.",
+            "latency_ms": round((time.time() - start_time) * 1000, 2),
+            "cost_usd": 0.0,
+        }
+
+    prompt = build_prompt(question, chunks)
+
+    for attempt in range(3):
+        try:
+            response = client.models.generate_content(model=GEN_MODEL, contents=prompt)
+            elapsed_ms = round((time.time() - start_time) * 1000, 2)
+            cost_usd = round(calculate_cost(len(prompt), len(response.text)), 6)
+            return {
+                "answer": response.text,
+                "latency_ms": elapsed_ms,
+                "cost_usd": cost_usd,
+            }
+        except ServerError:
+            if attempt < 2:
+                time.sleep(5 * (attempt + 1))
+            else:
+                return {
+                    "answer": "Systemet är tillfälligt överbelastat. Försök igen om en liten stund.",
+                    "latency_ms": round((time.time() - start_time) * 1000, 2),
+                    "cost_usd": 0.0,
+                }
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return {
+                "answer": "Ett oväntat fel uppstod. Försök igen om en liten stund.",
+                "latency_ms": round((time.time() - start_time) * 1000, 2),
+                "cost_usd": 0.0,
+            }
+
+
 def generate_answer(question, chunks=None, retries=3):
     if chunks is None:
         query_embedding = embed_query(question)

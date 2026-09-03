@@ -11,19 +11,23 @@ from pathlib import Path
 import pdfplumber
 import re
 
-
 # 1. Setup & Connections
 load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
 
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
-conn = psycopg2.connect(
-    host=os.environ.get("DB_HOST", "localhost"),
-    port=os.environ.get("DB_PORT", "5432"),
-    dbname=os.environ.get("DB_NAME", "sec_rag_db"),
-    user=os.environ.get("DB_USER", "raguser"),
-    password=os.environ.get("DB_PASSWORD", ""),
-)
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+if DATABASE_URL:
+    conn = psycopg2.connect(DATABASE_URL)
+else:
+    conn = psycopg2.connect(
+        host=os.environ.get("DB_HOST", "localhost"),
+        port=os.environ.get("DB_PORT", "5432"),
+        dbname=os.environ.get("DB_NAME", "sec_rag_db"),
+        user=os.environ.get("DB_USER", "raguser"),
+        password=os.environ.get("DB_PASSWORD", ""),
+    )
 cursor = conn.cursor()
 
 # Directories
@@ -139,9 +143,14 @@ def extract_tables_as_text(pdf_path):
                         else:
                             parts.append(v)
                     if parts:
-                        section_prefix = f"[Rubrik: {current_section}] " if current_section else ""
-                        table_chunks.append(f"{section_prefix}[Page {page_num}] " + " | ".join(parts))
+                        section_prefix = (
+                            f"[Rubrik: {current_section}] " if current_section else ""
+                        )
+                        table_chunks.append(
+                            f"{section_prefix}[Page {page_num}] " + " | ".join(parts)
+                        )
     return table_chunks
+
 
 def is_already_processed(filename):
     cursor.execute("SELECT id FROM documents WHERE filename = %s", (filename,))
